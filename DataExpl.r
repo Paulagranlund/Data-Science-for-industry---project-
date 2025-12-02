@@ -11,10 +11,9 @@ library(sf)
 library(naniar)
 
 # Data load
-df <- read_csv(file = "/Users/annamatzen/Desktop/Skrivebord MacBook Pro tilhørende Anna/MSc Business Analytics/ETSEIB/Data science for Industry/Project/Accidents.csv") %>% clean_names()
+df <- read_csv(file = "data/accidents_catalunya_english.xlsb.csv")
 
 # Data inspection
 summary(df)
 str(df)
 head(df)
-head(df$hor,5)
