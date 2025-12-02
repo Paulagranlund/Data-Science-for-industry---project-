@@ -148,3 +148,12 @@ miniDf %>%
   ggplot(aes(month, n, color = factor(IS_after_toll))) +
   geom_line() +
   labs(color = "Post Toll")
+
+# Change in accidents on toll highways
+df_highways <- miniDf %>%
+  filter(IS_on_toll_road == 1)
+
+df_highways %>%
+  count(via, IS_after_toll) %>%
+  ggplot(aes(via, n, fill=factor(IS_after_toll))) +
+  geom_col(position="dodge")
