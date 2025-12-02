@@ -3,7 +3,7 @@ library(ggplot2)
 library(dplyr)
 library(leaps)
 
-df <- read.csv("accidents_catalunya_english.xlsb.csv")
+df <- read.csv("accidents_catalunya_english.xlsb.csv", dec = ",")
 
 # Dataformating and creating beforetoll column
 df$dat <- as.Date(df$dat, format = "%d/%m/%Y")
@@ -73,4 +73,5 @@ miniDf$D_PRIORITY_REGULATION <- NULL
 miniDf$D_TRAFFIC_DIRRECTIONS <- NULL
 miniDf$D_ROAD_TYPE <- NULL
 miniDf$tipAcc <- NULL
+
 ##mby
