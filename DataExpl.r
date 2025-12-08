@@ -10,6 +10,8 @@ library(ggpubr)
 library(sf)       
 library(naniar)
 library(patchwork)
+library(leaps) #needed for the best subset modeling
+library(caret)
 
 # Data load
 df <- read_csv(file = "data/accidents_catalunya_english.xlsb.csv")
@@ -157,3 +159,48 @@ df_highways %>%
   count(via, IS_after_toll) %>%
   ggplot(aes(via, n, fill=factor(IS_after_toll))) +
   geom_col(position="dodge")
+
+
+
+pred = c(miniDf %>%
+           select(-IS_after_toll) %>%
+           select(where(is.numeric)) %>%
+           colnames()
+)
+
+library(caret)
+library(leaps)
+
+# 1. Convert predictors to numeric dummy matrix
+X <- model.matrix(~ . - 1, data = miniDf[, pred])  # factors → dummies, remove intercept
+
+# 2. Convert everything to numeric (just in case)
+X <- apply(X, 2, as.numeric)
+
+# 3. Replace Inf/-Inf with NA
+X[is.infinite(X)] <- NA
+
+# 4. Remove constant columns (all same value)
+X <- X[, apply(X, 2, function(col) length(unique(col[!is.na(col)])) > 1)]
+
+# 5. Impute missing values with column mean
+for(i in 1:ncol(X)) {
+  if(any(is.na(X[,i]))) X[,i][is.na(X[,i])] <- mean(X[,i], na.rm = TRUE)
+}
+
+# 6. Check for linear dependencies
+lin_dep <- findLinearCombos(X)
+lin_dep  # columns to remove are lin_dep$remove
+
+# 7. Remove columns causing perfect multicollinearity
+if(!is.null(lin_dep$remove)) X <- X[, -lin_dep$remove]
+
+
+sub.fit = regsubsets(IS_after_toll ~ .,
+                     data = miniDf[,c('IS_after_toll',pred)],
+                     nbest = 1, 
+                     nvmax = NULL,
+                     method = 'exhaustive') # Best subset model
+
+bestSubsetSummary = summary(sub.fit)
+bestSubsetSummary
