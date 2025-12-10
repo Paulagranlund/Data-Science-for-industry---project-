@@ -12,6 +12,7 @@ library(naniar)
 library(patchwork)
 library(leaps) #needed for the best subset modeling
 library(caret)
+library(cluster) # for pam clustering
 
 # Data load
 df <- read_csv(file = "data/accidents_catalunya_english.xlsb.csv")
@@ -104,3 +105,16 @@ df_cleaned %>%
   summarise(across(where(is.numeric), list(mean = mean, sd = sd), na.rm = TRUE))
 
 
+# Now handling categorical variables as well
+df_cleaned_fixed <- df_cleaned %>%
+  mutate(across(where(is.character), as.factor))
+
+str(df_cleaned_fixed)
+gower_dist <- daisy(df_cleaned_fixed, metric = "gower")
+
+pam_fit <- pam(gower_dist, k = 8)
+
+df_cleaned$cluster <- pam_fit$cluster
+
+# Size of clusters
+table(df_cleaned$cluster)
