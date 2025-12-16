@@ -141,4 +141,24 @@ conf_mat
 # Variable importance
 pruned_tree$variable.importance
 
+# Visualize the variable importance
+var_imp <- tree_model$variable.importance
+
+vi_df <- data.frame(
+  variable = names(var_imp),
+  importance = as.numeric(var_imp)
+) %>%
+  arrange(desc(importance)) %>%
+  slice(1:10)
+
+ggplot(vi_df, aes(x = reorder(variable, importance), y = importance)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Variable Importance from Classification Tree",
+    x = "Variable",
+    y = "Relative Importance"
+  ) +
+  theme_minimal()
+
 ## the pruning did not improve the model significantly
