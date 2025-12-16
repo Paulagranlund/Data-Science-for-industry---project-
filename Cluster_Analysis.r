@@ -72,11 +72,13 @@ df_cleaned <- df_cleaned %>%
 df_cleaned <- df_cleaned %>%
   mutate(across(where(is.integer), as.numeric))
 
-# Imputing missing values for categorical columns
+# Imputing missing values for categorical columns, except the target variable
 df_cleaned <- df_cleaned %>%
   mutate(
-    across(where(is.factor),
-           ~ fct_na_value_to_level(.x, level = "Unknown"))
+    across(
+      where(is.factor) & !all_of("before_after"),
+      ~ fct_na_value_to_level(.x, level = "Unknown")
+    )
   )
 # Imputing missing values for numeric columns
 df_cleaned <- df_cleaned %>%
@@ -95,11 +97,14 @@ train_data <- df_cleaned[train_index, ]
 test_data <- df_cleaned[-train_index, ]
 
 # Fit tree
-tree_model <- rpart(before_after ~ ., 
-                    data = train_data,
-                    method = "class",
-                    control = rpart.control(cp = 0.01))  # cp = complexity parameter
-
+tree_model <- rpart(
+  before_after ~ .,
+  data = train_data,
+  method = "class",
+  parms = list(
+    prior = c(0.5, 0.5)  # force equal importance of classes
+  ),
+  control = rpart.control(cp = 0.001, minsplit = 20))
 # Plot the tree
 rpart.plot(tree_model, type = 3, extra = 101)
 
@@ -113,7 +118,27 @@ conf_mat
 tree_model$variable.importance
 
 ## Improvemnets
-# Prune the tree to avoid overfitting
-best_cp <- tree_model$cptable[which.min(tree_model$cptable[,"xerror"]),"CP"]
+# Tuning the complexity parameter (cp) to prune the tree
+printcp(tree_model)
+plotcp(tree_model)
+
+best_cp <- tree_model$cptable[
+  which.min(tree_model$cptable[, "xerror"]),
+  "CP"
+]
+
 pruned_tree <- prune(tree_model, cp = best_cp)
+
+# Re-evaluate the pruned tree
+# Plot the tree
 rpart.plot(pruned_tree, type = 3, extra = 101)
+### Evaluation of model
+# Predict on test data
+pred_pruned <- predict(pruned_tree, newdata = test_data, type = "class")
+# Confusion matrix
+conf_mat <- confusionMatrix(pred_pruned, test_data$before_after)
+conf_mat
+# Variable importance
+pruned_tree$variable.importance
+
+## the pruning did not improve the model significantly
