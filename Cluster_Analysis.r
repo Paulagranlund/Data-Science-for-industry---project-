@@ -10,129 +10,110 @@ library(ggpubr)
 library(sf)       
 library(naniar)
 library(patchwork)
-library(leaps) #needed for the best subset modeling
-library(clustMixType)
 library(caret)
 library(forcats) # For factor manipulation
+library(rpart)
+library(rpart.plot)
 
 # Data load
 df <- read_csv(file = "data/accidents_catalunya_english.xlsb.csv")
 
 summary(df)
 
+# Investigating the C_ROAD_SPEED variable
+summary(df$C_ROAD_SPEED)
+boxplot(df$C_ROAD_SPEED, main = "C_ROAD_SPEED")
+
+# Imputing the value for the observations with 999 speed limit
+df <- df %>%
+  mutate(
+    C_ROAD_SPEED = if_else(C_ROAD_SPEED == 999, NA_real_, C_ROAD_SPEED)
+  )
+df <- df %>%
+  mutate(
+    C_ROAD_SPEED = ifelse(
+      is.na(C_ROAD_SPEED),
+      median(C_ROAD_SPEED, na.rm = TRUE),
+      C_ROAD_SPEED
+    )
+  )
+summary(df$C_ROAD_SPEED)
+
+# Format date column
+df$dat <- as.Date(df$dat, format = "%d/%m/%Y")
+
+# add before/after variable for law change on 1st September 2021
+df <- df %>%
+  mutate(before_after = if_else(dat < ymd("2021-09-01"), 
+                                "Before", "After"))
+
+
 # count missing values
 missing_values <- sapply(df, function(x) sum(is.na(x)))
 print(missing_values)
 
-# remove columns containing more than 10% missing values
-threshold <- nrow(df) * 0.1
+# remove columns containing more than 40% missing values
+threshold <- nrow(df) * 0.4
 df_cleaned <- df[, colSums(is.na(df)) <= threshold]
 
 # Count missing values again
 missing_values <- sapply(df_cleaned, function(x) sum(is.na(x)))
-print(missing_values) # Removes D_TERRAIN_CHARACTER, D_INFL_FOG, C_ROAD_SPEED, D_INFL_WIND, D_PRIORITY_REGULATION, D_SUBTYPE_STREET,D_ROAD_OWNERSHIP, D_ROAD_LAYOUT, D_TRAFFIC_DIRRECTIONS
+print(missing_values) # Removes D_PRIORITY_REGULATION, D_SUBTYPE_STREET,D_ROAD_OWNERSHIP, D_ROAD_LAYOUT
 
-# Use KMeans clustering to identify patterns in accident data
-# Add an ID column for reference
-#df_cleaned$id <- seq_len(nrow(df_cleaned))
-
-# Drop date, time and via column, as they have no meaningful semantic for clustering
+# Drop date, time, pk, Any and via column
 df_cleaned <- df_cleaned %>%
-  select(-dat, -time, -via, -pk)
+  select(-dat, -time, -via, -Any, -pk)
 
-summary(df_cleaned)
-
-# Convert character variables to factors and integer to numeric
-df_kproto <- df_cleaned %>%
+# Converting character columns to factors
+df_cleaned <- df_cleaned %>%
   mutate(across(where(is.character), as.factor))
 
-df_kproto <- df_kproto %>%
+# Ensure integer columns are numeric
+df_cleaned <- df_cleaned %>%
   mutate(across(where(is.integer), as.numeric))
 
-df_kproto <- df_kproto %>% drop_na()
-
-# Scaling numeric variables
-num_vars <- df_kproto %>% select(where(is.numeric))
-cat_vars <- df_kproto %>% select(where(is.factor))
-num_scaled <- scale(num_vars)
-# Cap scaled values to be within -5 to 5 to limit the influence of outliers
-num_scaled[num_scaled > 5] <- 5
-num_scaled[num_scaled < -5] <- -5
-
-df_kproto_scaled <- bind_cols(
-  as.data.frame(num_scaled),
-  cat_vars
-)
-summary(df_kproto_scaled)
-
-# Lumping infrequent categories in categorical variables
-df_kproto_scaled <- df_kproto_scaled %>%
+# Imputing missing values for categorical columns
+df_cleaned <- df_cleaned %>%
   mutate(
-    nomMun = fct_lump_min(nomMun, min = 300),
-    nomCom = fct_lump_min(nomCom, min = 700),
-    D_SUBTYPE_ACCIDENT = fct_lump_min(D_SUBTYPE_ACCIDENT, min = 1800)
+    across(where(is.factor),
+           ~ fct_na_value_to_level(.x, level = "Unknown"))
   )
+# Imputing missing values for numeric columns
+df_cleaned <- df_cleaned %>%
+  mutate(across(where(is.numeric),
+                ~ ifelse(is.na(.), median(., na.rm = TRUE), .)))
 
-summary(df_kproto_scaled)
+# Check missing values again
+missing_values <- sapply(df_cleaned, function(x) sum(is.na(x)))
+print(missing_values)
 
-
-# Run K-Prototypes clustering
-# Model selection: Elbow method
-wss <- numeric(10)
-
-for (k in 2:10) {
-  fit <- kproto(df_kproto_scaled, k = k)
-  wss[k] <- fit$tot.withinss
-}
-
-plot(2:10, wss[2:10], type = "b",
-     xlab = "Number of clusters (k)",
-     ylab = "Total Within-Cluster Cost",
-     main = "Elbow Method for K-Prototypes")
-
-# Using k = 7 based on elbow method
+# Split dataq into training and testing sets
 set.seed(123)
 
-kproto_fit <- kproto(
-  df_kproto_scaled,
-  k = 7,          # your chosen number of clusters
-  lambda = NULL   # automatic weighting (recommended)
-)
+train_index <- createDataPartition(df_cleaned$before_after, p = 0.7, list = FALSE)
+train_data <- df_cleaned[train_index, ]
+test_data <- df_cleaned[-train_index, ]
 
-df_kproto_scaled$cluster <- as.factor(kproto_fit$cluster)
+# Fit tree
+tree_model <- rpart(before_after ~ ., 
+                    data = train_data,
+                    method = "class",
+                    control = rpart.control(cp = 0.01))  # cp = complexity parameter
 
-# Inspect cluster sizes
-table(df_kproto_scaled$cluster)
+# Plot the tree
+rpart.plot(tree_model, type = 3, extra = 101)
 
-# Inspect cluster centers
-kproto_fit$centers
+### Evaluation of model
+# Predict on test data
+pred <- predict(tree_model, newdata = test_data, type = "class")
+# Confusion matrix
+conf_mat <- confusionMatrix(pred, test_data$before_after)
+conf_mat
+# Variable importance
+tree_model$variable.importance
 
-# Total within-cluster sum of squares
-kproto_fit$tot.withinss
-
-#Comparing to baseline model
-set.seed(123)
-k1 <- kproto(df_kproto_scaled, k = 1)
-k1$tot.withinss
-1 - (kproto_fit$tot.withinss / k1$tot.withinss) # Since the improvement is less than 33,7%, the clustering is not very effective.
-
-
-# Analyzing clusters
-cluster_summary <- df_kproto_scaled %>%
-  group_by(cluster) %>%
-  summarise(across(everything(), ~ if(is.numeric(.)) mean(.) else as.character(names(sort(table(.), decreasing = TRUE)[1]))))
-
-cluster_summary
-print(cluster_summary)
-# Visualizing clusters
-ggplot(df_kproto_scaled, aes(x = F_DEAD, fill = cluster)) +
-  geom_bar(position = "dodge") +
-  labs(title = "Distribution of Fatalities by Cluster",
-       x = "Fatalities",
-       y = "Count") +
-  theme_minimal()
-
-# Checking clustering stability
-set.seed(1)
-costs <- replicate(10, kproto(df_kproto_scaled, k = 5)$tot.withinss)
-sd(costs) / mean(costs) # 3% within-cluster variation, indicating stable clustering
+## Improvemnets
+# Prune the tree to avoid overfitting
+best_cp <- tree_model$cptable[which.min(tree_model$cptable[,"xerror"]),"CP"]
+pruned_tree <- prune(tree_model, cp = best_cp)
+rpart.plot(pruned_tree, type = 3, extra = 101)
