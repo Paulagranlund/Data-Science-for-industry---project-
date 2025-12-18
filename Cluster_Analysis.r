@@ -149,7 +149,7 @@ vi_df <- data.frame(
   importance = as.numeric(var_imp)
 ) %>%
   arrange(desc(importance)) %>%
-  slice(1:10)
+  slice(1:5)
 
 ggplot(vi_df, aes(x = reorder(variable, importance), y = importance)) +
   geom_col(fill = "steelblue") +
