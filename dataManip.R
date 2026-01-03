@@ -20,13 +20,13 @@ df$dat <- as.Date(df$dat, format = "%d/%m/%Y")
 
 # add before/after variable for law change on 1st September 2021
 df <- df %>%
-  mutate(before_after = if_else(dat < ymd("2021-09-01"), 
+  mutate(post_toll = if_else(dat < ymd("2021-09-01"), 
                                 "Before", "After"))
 
 
-# Investigate the class balance of the target variable before_after
-table(df$before_after)
-prop.table(table(df$before_after))
+# Investigate the class balance of the target variable post_toll
+table(df$post_toll)
+prop.table(table(df$post_toll))
 
 # Distribution of numeric variables
 # Imputing the value for the observations with 999 speed limit
@@ -42,7 +42,7 @@ df <- df %>%
       C_ROAD_SPEED
     )
   )
-ggplot(df, aes(x = C_ROAD_SPEED, fill = before_after)) +
+ggplot(df, aes(x = C_ROAD_SPEED, fill = post_toll)) +
   geom_density(alpha = 0.4) +
   labs(
     title = "Distribution of Road Speed by Period",
@@ -51,13 +51,53 @@ ggplot(df, aes(x = C_ROAD_SPEED, fill = before_after)) +
     fill = "Period"
   )
 
-ggplot(df, aes(x = before_after, y = F_DEAD)) +
+ggplot(df, aes(x = post_toll, y = F_DEAD)) +
   geom_boxplot() +
   labs(
     title = "Fatalities by Period",
     x = "Period",
     y = "Fatalities"
   )
+
+# Distribution of categorical variables
+df <- df %>%
+  drop_na(D_SUBTYPE_ACCIDENT)
+
+ggplot(df, aes(x = D_SUBTYPE_ACCIDENT, fill = post_toll)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Accident Subtype Distribution by Period",
+    x = "Accident Subtype",
+    y = "Proportion",
+    fill = "Period"
+  ) +
+  coord_flip()
+
+# Spatial EDA
+top_mun <- df %>%
+  count(nomMun) %>%
+  arrange(desc(n)) %>%
+  slice(1:10) %>%
+  pull(nomMun)
+
+df %>%
+  filter(nomMun %in% top_mun) %>%
+  ggplot(aes(x = nomMun, fill = post_toll)) +
+  geom_bar(position = "fill") +
+  coord_flip() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Distribution of Accidents in Top 10 Municipalities",
+    x = "Municipality",
+    y = "Proportion",
+    fill = "Period"
+  )
+
+  df %>%
+  ggplot(aes(x = zona, fill = post_toll)) +
+  geom_bar(position = "fill") +
+  coord_flip()
 
 
 
