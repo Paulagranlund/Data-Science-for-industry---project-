@@ -47,7 +47,6 @@ df <- df %>%
   mutate(before_after = if_else(dat < ymd("2021-09-01"), 
                                 "Before", "After"))
 
-
 # count missing values
 missing_values <- sapply(df, function(x) sum(is.na(x)))
 print(missing_values)

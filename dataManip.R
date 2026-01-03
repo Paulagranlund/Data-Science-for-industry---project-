@@ -2,8 +2,64 @@ library(tidyverse)
 library(ggplot2)
 library(dplyr)
 library(leaps)
+library(lubridate)
+library(stringr)
+library(janitor)
+library(scales)
 
-df <- read.csv("accidents_catalunya_english.xlsb.csv", dec = ",")
+# Data load
+df <- read_csv(file = "data/accidents_catalunya_english.xlsb.csv")
+
+## Data exploration and manipulation
+summary(df)
+str(df)
+head(df)
+
+# Format date column
+df$dat <- as.Date(df$dat, format = "%d/%m/%Y")
+
+# add before/after variable for law change on 1st September 2021
+df <- df %>%
+  mutate(before_after = if_else(dat < ymd("2021-09-01"), 
+                                "Before", "After"))
+
+
+# Investigate the class balance of the target variable before_after
+table(df$before_after)
+prop.table(table(df$before_after))
+
+# Distribution of numeric variables
+# Imputing the value for the observations with 999 speed limit
+df <- df %>%
+  mutate(
+    C_ROAD_SPEED = if_else(C_ROAD_SPEED == 999, NA_real_, C_ROAD_SPEED)
+  )
+df <- df %>%
+  mutate(
+    C_ROAD_SPEED = ifelse(
+      is.na(C_ROAD_SPEED),
+      median(C_ROAD_SPEED, na.rm = TRUE),
+      C_ROAD_SPEED
+    )
+  )
+ggplot(df, aes(x = C_ROAD_SPEED, fill = before_after)) +
+  geom_density(alpha = 0.4) +
+  labs(
+    title = "Distribution of Road Speed by Period",
+    x = "Road Speed",
+    y = "Density",
+    fill = "Period"
+  )
+
+ggplot(df, aes(x = before_after, y = F_DEAD)) +
+  geom_boxplot() +
+  labs(
+    title = "Fatalities by Period",
+    x = "Period",
+    y = "Fatalities"
+  )
+
+
 
 # Dataformating and creating beforetoll column
 df$dat <- as.Date(df$dat, format = "%d/%m/%Y")
