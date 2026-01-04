@@ -44,7 +44,7 @@ df$dat <- as.Date(df$dat, format = "%d/%m/%Y")
 
 # add before/after variable for law change on 1st September 2021
 df <- df %>%
-  mutate(before_after = if_else(dat < ymd("2021-09-01"), 
+  mutate(post_toll = if_else(dat < ymd("2021-09-01"), 
                                 "Before", "After"))
 
 # count missing values
@@ -75,7 +75,7 @@ df_cleaned <- df_cleaned %>%
 df_cleaned <- df_cleaned %>%
   mutate(
     across(
-      where(is.factor) & !all_of("before_after"),
+      where(is.factor) & !all_of("post_toll"),
       ~ fct_na_value_to_level(.x, level = "Unknown")
     )
   )
@@ -91,13 +91,13 @@ print(missing_values)
 # Split dataq into training and testing sets
 set.seed(123)
 
-train_index <- createDataPartition(df_cleaned$before_after, p = 0.7, list = FALSE)
+train_index <- createDataPartition(df_cleaned$post_toll, p = 0.7, list = FALSE)
 train_data <- df_cleaned[train_index, ]
 test_data <- df_cleaned[-train_index, ]
 
 # Fit tree
 tree_model <- rpart(
-  before_after ~ .,
+  post_toll ~ .,
   data = train_data,
   method = "class",
   parms = list(
@@ -111,7 +111,7 @@ rpart.plot(tree_model, type = 3, extra = 101)
 # Predict on test data
 pred <- predict(tree_model, newdata = test_data, type = "class")
 # Confusion matrix
-conf_mat <- confusionMatrix(pred, test_data$before_after)
+conf_mat <- confusionMatrix(pred, test_data$post_toll)
 conf_mat
 # Variable importance
 tree_model$variable.importance
@@ -135,7 +135,7 @@ rpart.plot(pruned_tree, type = 3, extra = 101)
 # Predict on test data
 pred_pruned <- predict(pruned_tree, newdata = test_data, type = "class")
 # Confusion matrix
-conf_mat <- confusionMatrix(pred_pruned, test_data$before_after)
+conf_mat <- confusionMatrix(pred_pruned, test_data$post_toll)
 conf_mat
 # Variable importance
 pruned_tree$variable.importance
