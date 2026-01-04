@@ -48,26 +48,49 @@ vars_used <- c(
   "night",
   "F_UNITS_INVOLVED",
   "severe",
-  "D_CLIMAT"  
+  "D_CLIMAT",
+  "D_ROAD_TYPE"
 )
 
 acc_mod <- accidents[complete.cases(accidents[, vars_used]), ]
 
+# Add time structure feature
+acc_mod <- acc_mod %>%
+  mutate(
+    month = month(dat)
+  )
+
+# Train/test split 
+set.seed(123)
+
+idx0 <- which(acc_mod$post_toll == 0)
+idx1 <- which(acc_mod$post_toll == 1)
+
+test_idx <- c(
+  sample(idx0, size = floor(0.2 * length(idx0))),
+  sample(idx1, size = floor(0.2 * length(idx1)))
+)
+
+test  <- acc_mod[test_idx, ]
+train <- acc_mod[-test_idx, ]
+
 # Use weights to handle class imbalance
-w <- ifelse(acc_mod$post_toll == 1,
-            sum(acc_mod$post_toll == 0) / sum(acc_mod$post_toll == 1),
+w_train <- ifelse(train$post_toll == 1,
+            sum(train$post_toll == 0) / sum(train$post_toll == 1),
             1)
 
 # Fit a logistic regression
 mod_logit <- glm(
-  post_toll ~ is_highway * zona +
-              is_highway * weekend +
-              is_highway * night +
+  post_toll ~ is_highway +
+              zona +
+              weekend +
               F_UNITS_INVOLVED +
-              D_CLIMAT,
+              D_CLIMAT +
+              D_ROAD_TYPE +
+              factor(month),
   family = binomial,
-  data = acc_mod,
-  weights = w
+  data = train,
+  weights = w_train
 )
 
 # Interpret the model 
@@ -76,7 +99,7 @@ exp(coef(mod_logit))
 exp(confint(mod_logit))
 
 # Evaluate model performance
-pred_prob <- predict(mod_logit, type = "response")
-roc_obj <- roc(acc_mod$post_toll, pred_prob)
+pred_prob <- predict(mod_logit, newdata = test, type = "response")
+roc_obj <- roc(test$post_toll, pred_prob)
 plot(roc_obj)
 auc(roc_obj)
