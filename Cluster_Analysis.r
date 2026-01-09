@@ -1,17 +1,10 @@
 # Load libraries
-library(tidyverse)
-library(lubridate)
+library(readr)
 library(dplyr)
-library(stringr)
-library(janitor)
+library(lubridate)
 library(ggplot2)
-library(scales)
-library(ggpubr)
-library(sf)       
-library(naniar)
-library(patchwork)
+library(forcats)
 library(caret)
-library(forcats) # For factor manipulation
 library(rpart)
 library(rpart.plot)
 
@@ -150,6 +143,7 @@ vi_df <- data.frame(
   arrange(desc(importance)) %>%
   slice(1:5)
 
+quartz(width = 12, height = 7)  
 ggplot(vi_df, aes(x = reorder(variable, importance), y = importance)) +
   geom_col(fill = "steelblue") +
   coord_flip() +
@@ -158,6 +152,14 @@ ggplot(vi_df, aes(x = reorder(variable, importance), y = importance)) +
     x = "Variable",
     y = "Relative Importance"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 26, face = "bold"),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    axis.text.x  = element_text(size = 14),
+    axis.text.y  = element_text(size = 14),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 30)  
+  )
 
 ## the pruning did not improve the model significantly
