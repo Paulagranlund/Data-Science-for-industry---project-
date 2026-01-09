@@ -112,6 +112,9 @@ tree_model$variable.importance
 ## Improvemnets
 # Tuning the complexity parameter (cp) to prune the tree
 printcp(tree_model)
+quartz(width = 10, height = 7)
+
+par(cex.main = 1.6, cex.lab = 1.3, cex.axis = 1.2, mar = c(5,5,4,2) + 0.1)
 plotcp(tree_model)
 
 best_cp <- tree_model$cptable[
