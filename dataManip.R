@@ -42,6 +42,7 @@ df <- df %>%
       C_ROAD_SPEED
     )
   )
+
 ggplot(df, aes(x = C_ROAD_SPEED, fill = post_toll)) +
   geom_density(alpha = 0.4) +
   labs(
@@ -49,14 +50,28 @@ ggplot(df, aes(x = C_ROAD_SPEED, fill = post_toll)) +
     x = "Road Speed",
     y = "Density",
     fill = "Period"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title  = element_text(size = 28),
+    axis.title  = element_text(size = 28),
+    axis.text   = element_text(size = 28),
+    legend.title = element_text(size = 28),
+    legend.text  = element_text(size = 28)
   )
 
 ggplot(df, aes(x = post_toll, y = F_DEAD)) +
-  geom_boxplot() +
+  geom_boxplot(fill = "steelblue", alpha = 0.7) +
   labs(
     title = "Fatalities by Period",
     x = "Period",
     y = "Fatalities"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 28),
+    axis.title = element_text(size = 28),
+    axis.text  = element_text(size = 28)
   )
 
 # Distribution of categorical variables
