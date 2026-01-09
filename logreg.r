@@ -111,6 +111,7 @@ mod_step <- stepAIC(mod_null,
 mod_manual <- glm(form_manual, family = binomial, data = train, weights = w_train)
 
 # Residual plots (Deviance residuals)
+quartz(width=6, height=6)
 par(mfrow = c(1,2))
 
 plot(residuals(mod_step, type = "deviance"),
@@ -130,6 +131,7 @@ abline(h = 0, col = "red")
 par(mfrow = c(1,1))
 
 # Influence check 
+quartz(width=6, height=6)
 plot(cooks.distance(mod_step), type = "h",
      main = "Cook's Distance",
      ylab = "Influence")
@@ -151,7 +153,24 @@ roc_step  <- roc(test$post_toll, pred_step)
 auc(roc_manual)
 auc(roc_step)
 
-plot(roc_manual, main = "ROC: Manual vs Stepwise")
-plot(roc_step, add = TRUE)
-legend("bottomright", legend = c("Manual", "Stepwise"),
-       lty = 1, bty = "n")
+quartz(width = 6, height = 6)
+plot(roc_manual,
+     col = "steelblue",
+     lwd = 2,
+     main = "ROC: Manual vs Stepwise")
+plot(roc_step,
+     add = TRUE,
+     col = "darkorange",
+     lwd = 2)
+#abline(a = 0, b = 1, lty = 3, col = "gray60")  # reference line
+legend("bottomright",
+       legend = c("Manual", "Stepwise"),
+       col = c("steelblue", "darkorange"),
+       lwd = 2,
+       lty = 1,
+       bty = "n")
+
+# Interpretation of the model
+summary(mod_step)
+exp(coef(mod_step))
+exp(confint(mod_step))
